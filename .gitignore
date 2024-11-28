@@ -1,0 +1,27 @@
+# Python Bytecode
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pdb
+
+# Virtual Environment
+venv/
+env/
+*.env
+*.venv
+
+# VS Code settings
+.vscode/
+
+# IDE files
+.idea/
+
+# FastAPI-related folders (if you use any specific ones)
+*.log
+
+# .env file for sensitive data
+.env
+
+# Local configuration files
+*.sqlite
