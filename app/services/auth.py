@@ -1,46 +1,66 @@
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
+from fastapi import HTTPException, status,  Response, Request
 from app.models.user import User
 from app.models.client import Client
 from app.schemas.user import UserCreate
+from app.schemas.auth import AuthUserCreate
 from app.schemas.client import ClientCreate
 from app.utils.security import hash_password
+from app.utils.email import send_email, verify_email_body, otp_email_body
+from app.utils.auth import generate_otp, create_token, authenticate_user
+from app.utils.cookies import set_cookies
+from app.core.config import settings
+from datetime import datetime, timedelta, timezone
+from app.models.user import UserRole
 
-def register_user_and_client(db: Session, user_create: UserCreate, client_create: ClientCreate):
+
+def create_new_user(user: AuthUserCreate, db: Session):
     try:
-        # Create the User
-        user = User(
-            name=user_create.name,
-            email=user_create.email,
-            password_hash=hash_password(user_create.password), 
-            role=user_create.role,
-        )
+        if not user.email or not user.password or not user.name:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email, password, and name are required"
+            )
         
-        db.add(user)
-        db.commit() 
-        db.refresh(user)
+        existing_user = db.query(User).filter(User.email == user.email.lower()).first()
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already exists"
+            )
 
-        # Create the Client and link to the User
-        client = Client(
-            name=client_create.name,
-            user_id=user.id 
+        otp = generate_otp()
+        otp_expiration_time = datetime.now(timezone.utc) + timedelta(minutes=5)
+
+        user = User(
+            email=user.email,
+            password=user.password,
+            name=user.name,
+            otp=otp,
+            role=UserRole.client_admin,
+            otp_expires_at=otp_expiration_time
         )
 
-        db.add(client)
-        db.commit() 
-        db.refresh(client)  
+        try:
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+        except SQLAlchemyError as e:
+            db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Database Error"+str(e)
+            )
 
-        # Update the User with the `client_id`
-        user.client_id = client.id 
-        db.commit()
+        subject = "Verify Your Email"
+        body = verify_email_body(user.name, otp)
+        send_email(to_email=user.email, subject=subject, body=body)
 
-        # Return the created user and client as a dictionary
-        return {"user": user, "client": client}
-
-    except SQLAlchemyError as e:
-        db.rollback() 
-        raise Exception(f"Database error: {str(e)}")
-
-    except Exception as e:
-        db.rollback()  
-        raise Exception(f"Unexpected error: {str(e)}")
+        return user
+    except SQLAlchemyError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error created while creating the user"
+        )
