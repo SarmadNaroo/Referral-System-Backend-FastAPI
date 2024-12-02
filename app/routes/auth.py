@@ -36,3 +36,9 @@ def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db))
     user = update_password(request, db)
     return {"user": user}
 
+@router.post("/logout", status_code=status.HTTP_200_OK)
+def logout(response: Response):
+    response.delete_cookie(key="access_token")
+    response.delete_cookie(key="refresh_token")
+    return {"message": "Logged out successfully"}
+

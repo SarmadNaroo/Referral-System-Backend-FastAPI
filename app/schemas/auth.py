@@ -1,5 +1,6 @@
 from pydantic import BaseModel, EmailStr, Field
 from uuid import UUID
+from app.schemas.user import UserRole
 
 class LoginRequest(BaseModel):
     email: EmailStr
@@ -38,3 +39,14 @@ class CurrentUserResponse(BaseModel):
     name: str
     email: EmailStr
     is_email_verified: bool
+
+class CurrentUserWithRoleResponse(BaseModel):
+    id: UUID
+    name: str
+    email: EmailStr
+    role: str 
+    is_email_verified: bool
+
+    class Config:
+        use_enum_values = True
+        orm_mode = True
