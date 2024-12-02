@@ -244,8 +244,12 @@ def update_password(request: Request, db: Session):
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="User not found"
             )
-        
-        user.password = request.password
+        if not request.password:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Password is required"
+            )
+        user.password = Hasher.hash_password(request.password)
         db.commit()
 
         return {"message": "Password updated successfully"}
