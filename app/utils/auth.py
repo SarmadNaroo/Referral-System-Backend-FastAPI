@@ -11,8 +11,7 @@ from jose import JWTError, jwt
 from app.schemas.auth import CurrentUserResponse
 import random
 import string
-from passlib.context import CryptContext
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+from app.utils.hasher import Hasher
 
 def create_token(data: dict, token_expire_minutes: int ,expires_delta: Optional[timedelta] = None ):
     to_encode = data.copy()
@@ -26,9 +25,13 @@ def create_token(data: dict, token_expire_minutes: int ,expires_delta: Optional[
 
 def authenticate_user(email: EmailStr, password: str, db: Session):
     user = get_user(email=email, db=db)
+    print("user email", user.email)
+    print("user password", user.password)
+    print("password", password)
     if not user:
         return False
     if not Hasher.verify_password(password, user.password):
+        print("password not matched")
         return False
     return user
 
@@ -73,14 +76,6 @@ async def get_current_user(request: Request, response: Response, db: Session = D
         email=user.email,
         is_email_verified=user.is_email_verified
     )
-
-
-class Hasher():
-    def verify_password(plain_password, hashed_password):
-        return pwd_context.verify(plain_password, hashed_password)
-
-    def get_password_hash(password):
-        return pwd_context.hash(password)
 
 def generate_otp(length: int = 6) -> str:
     return ''.join(random.choices(string.digits, k=length))

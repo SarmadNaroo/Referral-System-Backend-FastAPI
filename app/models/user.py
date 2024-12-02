@@ -29,19 +29,13 @@ class User(Base):
 
     # One-to-One relationship with Client
     client = relationship("Client", back_populates="user", uselist=False)
-
+    
 @event.listens_for(User, 'before_insert')
 def lowercase_email(mapper, connection, target):
-    from app.utils.security import hash_password
     if target.email:
         target.email = target.email.lower()
-    if target.password:
-        target.password = hash_password(target.password)
 
 @event.listens_for(User, 'before_update')
 def email_on_update(mapper, connection, target):
-    from app.utils.security import hash_password
     if target.email:
         target.email = target.email.lower()
-    if 'password' in target.__dict__: 
-        target.password = hash_password(target.password)
